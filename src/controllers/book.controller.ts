@@ -1,5 +1,6 @@
 import Bluebird from 'bluebird'
 import { Request } from 'express'
+import { RedisConnection } from '../connections'
 import { RedlockConnection } from '../connections/redlock.connection'
 import { CacheInterceptor, Controller, HttpCode } from '../decorators'
 
@@ -40,4 +41,16 @@ export class BookController {
         })
 		}
 	}
+
+  public async publish(req: Request) {
+    const redis = RedisConnection.getInstance().getClient()
+    const payload = Object.assign({}, req.body)
+    const rawPayload = JSON.stringify(payload)
+
+    await redis.publish('pub-sub-redis', rawPayload)
+
+    return {
+      message: 'Published'
+    }
+  }
 }

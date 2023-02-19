@@ -2,6 +2,7 @@ import Bluebird from 'bluebird'
 import createRedisStore from 'connect-redis'
 import express from 'express'
 import session from 'express-session'
+import { initConsumers } from './consumers'
 import { ConfigModule } from './configs'
 import { RedisConnection } from './connections'
 import { RedlockConnection } from './connections/redlock.connection'
@@ -15,9 +16,7 @@ async function main() {
 
 	const connections = [redisConnection, redlockConnection]
 
-	await Bluebird.each(connections, connection => {
-		return connection.init()
-	})
+	await Bluebird.each(connections, connection => connection.init())
 
 	const RedisStore = createRedisStore(session)
 	const port = +configModule.get<number>('PORT')
@@ -39,6 +38,8 @@ async function main() {
 	app.use(express.json())
 	app.use(express.urlencoded({ extended: true }))
 	app.use(initRoutes())
+
+  initConsumers()
 
 	app.listen(port, () => {
 		console.log(`[APP]: App is listening on port ${port}`)

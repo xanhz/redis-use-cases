@@ -10,6 +10,7 @@ export function initRoutes() {
 	router.get('/books', bookController.getBooks)
 	router.get('/books/with-locker', bookController.getBooksWithLocker)
 	router.get('/books/rate-limit', createRateLimit({ maxRequest: 1, second: 5 }), bookController.getBooksWithRatelimit)
+  router.post('/books/pub-sub', bookController.publish)
 
   router.post('/users/login', userController.login)
   router.delete('/users/logout', userController.logout)

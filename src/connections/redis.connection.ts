@@ -30,6 +30,10 @@ export class RedisConnection implements Connection {
     return this._client
   }
 
+  public cloneClient() {
+    return this._client.duplicate()
+  }
+
   public init() {
     return this._client.connect((error) => {
       if (error) {
