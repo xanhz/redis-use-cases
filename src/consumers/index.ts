@@ -1,34 +1,36 @@
-import { RedisConnection } from '../connections'
-import { Redis } from 'ioredis'
-import { logMessage } from './callbacks'
+import Redis from 'ioredis';
+import { OnApplicationBootstrap } from '../core';
+import { LoggerService } from '../services';
 
-type Callback = (payload: any) => any
-
-class ConsumerManager {
-  protected redis: Redis
-  protected mapCallback: Map<string, Callback>
-
-  constructor(redis: Redis) {
-    this.redis = redis
-    this.mapCallback = new Map()
-    this.redis.on('message', (channel, message) => {
-      const payload = JSON.parse(message)
-      const callback = this.mapCallback.get(channel)
-      if (callback) {
-        callback(payload)
-      }
-    })    
-  }
-
-	public subscribe(channel: string, callback: Callback) {
-    this.mapCallback.set(channel, callback)
-    return this.redis.subscribe(channel)
-  }
+export interface ConsumerManagerOptions {
+  redis: Redis;
 }
 
+export class ConsumerManager implements OnApplicationBootstrap {
+  protected readonly callbacks: Map<string, (payload: any) => void>;
+  private readonly logger: LoggerService;
+  private readonly redis: Redis;
 
-export function initConsumers() {
-  const redis = RedisConnection.getInstance().cloneClient()
-  const consumerManager = new ConsumerManager(redis)
-  consumerManager.subscribe('pub-sub-redis', logMessage)
+  constructor(options: ConsumerManagerOptions) {
+    const { redis } = options;
+    this.redis = redis;
+    this.callbacks = new Map();
+    this.logger = new LoggerService();
+  }
+
+  public subscribe(channel: string, callback: (payload: any) => void) {
+    this.callbacks.set(channel, callback);
+    return this.redis.subscribe(channel);
+  }
+
+  public onBootstrap(): Promise<any> {
+    this.redis.on('message', (channel, message) => {
+      const payload = JSON.parse(message);
+      const callback = this.callbacks.get(channel);
+      callback && callback(payload);
+    });
+    return this.subscribe('pub-sub-redis', (payload: any) => {
+      this.logger.log('[SUBSCRIBER] %o', payload);
+    });
+  }
 }

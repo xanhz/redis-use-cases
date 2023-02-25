@@ -1,50 +1,50 @@
-import { Request } from 'express'
-import { StatusCodes } from 'http-status-codes'
-import { Controller, HttpCode } from '../decorators'
-import { UnauthorizedError } from '../errors'
+import { Request } from 'express';
+import { Controller, Delete, Post } from '../core';
+import { UnauthorizedError } from '../errors';
 
-@Controller()
+@Controller('users')
 export class UserController {
-  private _whitelistUsers = [
+  private users = [
     {
       id: 1,
       username: 'user01',
-      password: '123'
+      password: '123',
     },
     {
       id: 2,
       username: 'user02',
-      password: '123'
-    }
-  ]
+      password: '123',
+    },
+  ];
 
-	public login(req: Request) {
-		const body = Object.assign({}, req.body)
-    const user = this._whitelistUsers.find(_ => {
-      const { username, password } = _
-      return body['username'] === username && body['password'] === password
-    })
+  @Post('login')
+  public login(req: Request) {
+    const body = Object.assign({}, req.body);
+    const user = this.users.find(user => {
+      const { username, password } = user;
+      return body['username'] === username && body['password'] === password;
+    });
     if (!user) {
-      throw new UnauthorizedError()
+      throw new UnauthorizedError();
     }
     // @ts-ignore
-    req.session['user'] = user
+    req.session['user'] = user;
     return {
-      message: 'Login successfully'
-    }
-	}
+      message: 'Login successfully',
+    };
+  }
 
-  @HttpCode(StatusCodes.NO_CONTENT)
-	public logout(req: Request) {
+  @Delete('logout')
+  public logout(req: Request) {
     // @ts-ignore
-    const user = req.session['user']
+    const user = req.session['user'];
     if (!user) {
-      throw new UnauthorizedError()
+      throw new UnauthorizedError();
     }
     return new Promise((resolve, reject) => {
       req.session.destroy(error => {
-        return error ? reject(error) : resolve(void 0)
-      })
-    })
+        return error ? reject(error) : resolve(void 0);
+      });
+    });
   }
 }

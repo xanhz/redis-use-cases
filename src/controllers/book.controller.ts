@@ -1,56 +1,41 @@
-import Bluebird from 'bluebird'
-import { Request } from 'express'
-import { RedisConnection } from '../connections'
-import { RedlockConnection } from '../connections/redlock.connection'
-import { CacheInterceptor, Controller, HttpCode } from '../decorators'
+import { Request } from 'express';
+import { Controller, Get, Post } from '../core';
+import { Cache } from '../decorators';
+import { RateLimit } from '../decorators';
+import { RedisService } from '../services';
 
-@Controller()
+@Controller('books')
 export class BookController {
-	public books: number[]
+  public books: number[];
 
-	constructor() {
-		this.books = [1, 2, 3]
-	}
-
-	@CacheInterceptor({ ttlMs: 30000 })
-	public async getBooks(req: Request) {
-		await Bluebird.delay(2000)
-		return this.books
-	}
-
-  public async getBooksWithRatelimit() {
-    return this.books
+  constructor(private readonly redis: RedisService) {
+    this.books = [1, 2, 3];
   }
 
-	public async getBooksWithLocker() {
-		const redlock = RedlockConnection.getInstance().getClient()
-    const resources = ['getBookWithLocker']
-		const locker = await redlock.acquire(resources, 6000)
-		console.log(`[BookController]: Lock acquires Time=${new Date()}`)
-		try {
-			await Bluebird.delay(2000)
-			return this.books
-		} finally {
-			locker
-				.release()
-				.then(() => {
-          console.log(`[BookController]: Release ${resources}`)
-        })
-				.catch(error => {
-          console.error(`[BookController]: Release ${resources} fail |`, error)
-        })
-		}
-	}
+  @Get()
+  @Cache({ ttl: 30000 })
+  public getBooks() {
+    return this.books;
+  }
 
+  @Get('rate-limit')
+  @RateLimit({
+    duration: 30,
+    max: 1,
+  })
+  public async getBooksWithRatelimit() {
+    return this.books;
+  }
+
+  @Post('pub-sub')
   public async publish(req: Request) {
-    const redis = RedisConnection.getInstance().getClient()
-    const payload = Object.assign({}, req.body)
-    const rawPayload = JSON.stringify(payload)
+    const payload = Object.assign({}, req.body);
+    const rawPayload = JSON.stringify(payload);
 
-    await redis.publish('pub-sub-redis', rawPayload)
+    await this.redis.publish('pub-sub-redis', rawPayload);
 
     return {
-      message: 'Published'
-    }
+      message: 'Published',
+    };
   }
 }
